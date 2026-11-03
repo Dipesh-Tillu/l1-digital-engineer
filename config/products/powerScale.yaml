@@ -1,0 +1,88 @@
+product_id: PowerScale
+display_name: Powerscale
+issue_taxonomy:
+- cluster_smartconnect
+- syncq_replication
+- capacity_quota
+- node_failure_hardware
+- performance_latency
+- upgrade_ota
+- nfs_smb_share
+- licensing_support
+thresholds:
+- category: '*'
+  min_citation_score: 0.72
+  require_precedent: false
+  auto_resolve: false
+- category: cluster_smartconnect
+  min_citation_score: 0.72
+  require_precedent: false
+  auto_resolve: true
+- category: syncq_replication
+  min_citation_score: 0.72
+  require_precedent: false
+  auto_resolve: true
+- category: capacity_quota
+  min_citation_score: 0.72
+  require_precedent: false
+  auto_resolve: true
+- category: node_failure_hardware
+  min_citation_score: 0.72
+  require_precedent: false
+  auto_resolve: true
+- category: performance_latency
+  min_citation_score: 0.72
+  require_precedent: false
+  auto_resolve: true
+- category: upgrade_ota
+  min_citation_score: 0.72
+  require_precedent: false
+  auto_resolve: true
+- category: nfs_smb_share
+  min_citation_score: 0.72
+  require_precedent: false
+  auto_resolve: true
+- category: licensing_support
+  min_citation_score: 0.72
+  require_precedent: false
+  auto_resolve: true
+escalation:
+  default_queue: l2-general
+  category_routes: {}
+model:
+  provider: anthropic
+  default: claude-sonnet-4-5
+  overrides: {}
+embedding:
+  provider: voyage
+  model: null
+  api_key_env: null
+tiers:
+- role: l1_support
+  categories:
+  - '*'
+  finetune:
+    backend: null
+    base_model: null
+    hyperparams: {}
+    model_ref: null
+    trained_at: null
+    metrics: {}
+kb_sources:
+- type: file
+  path: /Users/dtillu/Documents/Work/Capgemini/digital_l1_engineer/OneFSDocuments
+  summary_col: null
+  body_col: null
+  category_col: null
+  resolution_col: null
+  outcome_col: null
+issue_sources:
+- type: file
+  path: /Users/dtillu/Documents/Work/Capgemini/digital_l1_engineer/issues/l1-agent-powerscale-training-data.csv
+  summary_col: summary
+  body_col: body
+  category_col: category
+  resolution_col: resolution_summary
+  outcome_col: none
+prompt_addendum: null
+created_at: '2026-09-09T03:23:06.531663Z'

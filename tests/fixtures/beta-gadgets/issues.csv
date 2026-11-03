@@ -1,0 +1,7 @@
+Id,Subject,Description,Type,Resolution,Outcome
+beta-001,Want a refund after 20 days,I've had my gadget for 20 days and want to return it for a refund.,billing/refunds,Confirmed within the 30-day window and no restocking fee applies; processed the return label.,accepted
+beta-002,"Refund posted fast, is that normal?","My refund showed up only 3 days after I dropped off the return, is that right?",billing/refunds,Confirmed this is expected - Beta pre-authorizes refunds once the carrier scans the return label.,accepted
+beta-003,Charged a restocking fee?,"I think I was charged a restocking fee on my refund, is that correct?",billing/refunds,Confirmed Beta Gadgets charges no restocking fee under any circumstance and corrected the refund amount.,reopened
+beta-004,Gadget won't pair over Bluetooth,I'm holding the button but the LED never turns blue.,gadget/setup,Walked through holding the side button for the full 5 seconds and confirmed pairing succeeded.,accepted
+beta-005,Battery dies within 2 hours,My gadget is fully charged but dies after about 2 hours of use.,gadget/setup,Identified this as a battery health issue outside normal 18-hour expectations and routed to the defect process.,accepted
+beta-006,Firmware seems out of date,The app says my gadget is on an old firmware version.,gadget/setup,Confirmed the gadget was 3 major versions behind and walked the customer through a manual firmware update.,accepted

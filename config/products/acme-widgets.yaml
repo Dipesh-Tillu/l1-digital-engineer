@@ -1,0 +1,42 @@
+product_id: acme-widgets
+display_name: Acme Widgets
+issue_taxonomy:
+  - billing/refunds
+  - billing/invoices
+  - shipping/delays
+  - shipping/damaged
+  - account/access
+  - product/defect
+thresholds:
+  - category: "*"
+    min_citation_score: 0.72
+    require_precedent: false
+    auto_resolve: false
+  - category: billing/refunds
+    min_citation_score: 0.70
+    require_precedent: true
+    auto_resolve: true
+  - category: shipping/delays
+    min_citation_score: 0.65
+    require_precedent: false
+    auto_resolve: true
+escalation:
+  default_queue: l2-general
+  category_routes:
+    product/defect: l2-engineering
+    account/access: l2-security
+model:
+  default: claude-sonnet-4-5
+  overrides:
+    classify_issue: claude-haiku-4-5
+kb_sources:
+  - type: file
+    path: tests/fixtures/acme-widgets/docs
+issue_sources:
+  - type: file
+    path: tests/fixtures/acme-widgets/issues.csv
+    summary_col: Subject
+    body_col: Description
+    category_col: Type
+    resolution_col: Resolution
+    outcome_col: Outcome

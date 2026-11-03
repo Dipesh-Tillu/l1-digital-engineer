@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>L1 Digital Worker — Live Demo</title>
+<style>
+  :root{
+    --bg:#f4f6f9; --panel:#ffffff; --border:#dfe4ea; --text:#1b2430; --muted:#5b6674;
+    --accent:#0464d6; --accent-dark:#034da8; --accent-bg:#e8f1fd;
+    --good:#1b8a5a; --good-bg:#e6f6ee; --bad:#c2352b; --bad-bg:#fdecea; --warn:#a4670a; --warn-bg:#fdf3e0;
+    --col-new:#8a94a6; --col-working:#0464d6; --col-review:#a4670a; --col-resolved:#1b8a5a; --col-escalated:#c2352b;
+    --radius:10px; --shadow:0 1px 3px rgba(20,30,50,.08), 0 1px 2px rgba(20,30,50,.06);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;}
+  header{display:flex;align-items:center;gap:16px;padding:14px 20px;background:var(--panel);border-bottom:1px solid var(--border);flex-wrap:wrap;}
+  header h1{font-size:17px;margin:0;font-weight:700;}
+  header .tag{font-size:12px;color:var(--muted);padding:3px 9px;border:1px solid var(--border);border-radius:999px;background:var(--bg);}
+  header .spacer{flex:1;}
+  select{font:inherit;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:#fff;color:var(--text);}
+  main{display:grid;grid-template-columns:minmax(340px,440px) 1fr;gap:16px;padding:16px;align-items:start;}
+  @media (max-width:860px){ main{grid-template-columns:1fr;} }
+
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);display:flex;flex-direction:column;overflow:hidden;}
+  .panel h2{font-size:13px;margin:0;padding:12px 14px;border-bottom:1px solid var(--border);color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:700;}
+
+  /* ---- chat panel ---- */
+  #chat-log{padding:14px;display:flex;flex-direction:column;gap:10px;min-height:320px;max-height:62vh;overflow-y:auto;}
+  .msg{max-width:100%;padding:10px 12px;border-radius:10px;font-size:13.5px;white-space:pre-wrap;word-break:break-word;}
+  .msg.user{align-self:flex-end;background:var(--accent);color:#fff;border-bottom-right-radius:3px;}
+  .msg.system{align-self:center;background:var(--bg);color:var(--muted);font-size:12px;border:1px dashed var(--border);border-radius:999px;padding:5px 12px;}
+  .msg.agent{align-self:stretch;background:var(--bg);border:1px solid var(--border);border-bottom-left-radius:3px;}
+  .msg.agent .draft-body{white-space:pre-wrap;}
+  .msg.escalate{align-self:center;background:var(--bad-bg);color:var(--bad);border:1px solid #f4c2be;border-radius:8px;padding:8px 12px;font-weight:600;font-size:12.5px;}
+  .msg.resolved{align-self:center;background:var(--good-bg);color:var(--good);border:1px solid #bfe8d3;border-radius:8px;padding:8px 12px;font-weight:600;font-size:12.5px;}
+
+  .badge{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:999px;margin-bottom:8px;}
+  .badge.pass{background:var(--good-bg);color:var(--good);}
+  .badge.fail{background:var(--bad-bg);color:var(--bad);}
+  .attempt-tag{font-size:11px;color:var(--muted);margin-bottom:6px;}
+
+  details.evidence{margin-top:8px;font-size:12.5px;}
+  details.evidence summary{cursor:pointer;color:var(--accent);font-weight:600;}
+  .evidence ul{margin:6px 0 0 0;padding-left:18px;}
+  .evidence li{margin-bottom:4px;color:var(--muted);}
+  .evidence code{background:#eef1f5;padding:0 4px;border-radius:4px;}
+  .reasons{margin-top:6px;color:var(--bad);font-size:12px;}
+
+  .feedback-row{display:flex;gap:8px;margin-top:10px;}
+  button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid transparent;padding:7px 14px;font-weight:600;}
+  button.primary{background:var(--accent);color:#fff;}
+  button.primary:hover{background:var(--accent-dark);}
+  button.ghost{background:#fff;border-color:var(--border);color:var(--text);}
+  button.ghost:hover{background:var(--bg);}
+  button.reject{background:#fff;border-color:var(--bad);color:var(--bad);}
+  button.reject:hover{background:var(--bad-bg);}
+  button:disabled{opacity:.45;cursor:not-allowed;}
+
+  .reject-box{display:none;margin-top:8px;gap:8px;}
+  .reject-box.open{display:flex;}
+  .reject-box input{flex:1;padding:7px 10px;border-radius:8px;border:1px solid var(--border);font:inherit;}
+
+  #chat-form{display:flex;gap:8px;padding:12px;border-top:1px solid var(--border);}
+  #chat-input{flex:1;resize:none;font:inherit;padding:9px 11px;border-radius:8px;border:1px solid var(--border);min-height:40px;max-height:120px;}
+  #chat-input:disabled{background:var(--bg);color:var(--muted);}
+
+  /* ---- board panel ---- */
+  #board{display:grid;grid-template-columns:repeat(5,minmax(150px,1fr));gap:10px;padding:14px;overflow-x:auto;}
+  @media (max-width:860px){ #board{grid-template-columns:1fr 1fr;} }
+  .col{background:var(--bg);border-radius:8px;padding:8px;min-height:160px;display:flex;flex-direction:column;gap:8px;}
+  .col-head{display:flex;justify-content:space-between;align-items:center;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;padding:2px 4px;}
+  .col-head .dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;}
+  .col-count{background:#fff;border:1px solid var(--border);border-radius:999px;padding:0 7px;font-size:11px;color:var(--muted);}
+  .card{background:#fff;border:1px solid var(--border);border-radius:8px;padding:9px 10px;cursor:pointer;box-shadow:var(--shadow);}
+  .card:hover{border-color:var(--accent);}
+  .card .cid{font-size:10.5px;color:var(--muted);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}
+  .card .csummary{font-size:12.5px;font-weight:600;margin:3px 0 5px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+  .card .cmeta{display:flex;justify-content:space-between;font-size:10.5px;color:var(--muted);}
+  .card .cconf{font-weight:700;}
+
+  /* ---- activity panel ---- */
+  #activity-panel{grid-column:1/-1;}
+  #activity-panel .sub{padding:0 14px;margin-top:-4px;color:var(--muted);font-size:12px;}
+  #activity-log{padding:12px 14px;display:flex;flex-direction:column;gap:7px;max-height:280px;overflow-y:auto;font-size:12.5px;}
+  .activity-row{display:flex;gap:10px;align-items:baseline;padding:4px 0;border-bottom:1px solid #eef1f5;}
+  .activity-row:last-child{border-bottom:none;}
+  .activity-row .ts{flex:0 0 auto;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;color:var(--muted);padding-top:1px;}
+  .activity-row .activity-body{flex:1;min-width:0;}
+  .activity-row.step .activity-body{color:var(--text);}
+  .activity-row.step code{background:#eef1f5;padding:0 4px;border-radius:4px;}
+  .activity-row.info .activity-body{color:var(--muted);}
+  .activity-row.error .activity-body{color:var(--bad);}
+  .activity-row.state{background:var(--accent-bg);margin:2px -8px;padding:6px 8px;border-radius:6px;border-bottom:none;}
+  .activity-row.state .activity-body{color:var(--accent-dark);}
+  .activity-row.state .state-reason{font-weight:400;color:var(--text);margin-top:2px;font-size:12px;}
+  .activity-row.state.escalate{background:var(--bad-bg);}
+  .activity-row.state.escalate .activity-body{color:var(--bad);}
+  .activity-row.state.resolve{background:var(--good-bg);}
+  .activity-row.state.resolve .activity-body{color:var(--good);}
+  .activity-row.agent{background:#f2effa;margin:2px -8px;padding:6px 8px;border-radius:6px;border-bottom:none;}
+  .activity-row.agent .activity-body{color:#5b3fb8;}
+  .activity-row.handoff{background:var(--warn-bg);margin:2px -8px;padding:8px;border-radius:6px;border-bottom:none;}
+  .activity-row.handoff .activity-body{color:var(--warn);}
+
+  details.trace{margin:4px 0 2px;font-size:12px;}
+  details.trace summary{cursor:pointer;color:var(--accent);font-weight:600;list-style:revert;}
+  .trace-box{margin-top:8px;display:flex;flex-direction:column;gap:8px;}
+  .trace-box .trace-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);font-weight:700;margin-bottom:3px;}
+  .trace-box pre{background:#1b2430;color:#d8dee9;padding:8px 10px;border-radius:6px;font-size:11.5px;white-space:pre-wrap;word-break:break-word;max-height:180px;overflow-y:auto;margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}
+  .trace-steps{display:flex;flex-direction:column;gap:5px;}
+  .trace-step{padding:5px 8px;border-radius:6px;background:var(--bg);font-size:12px;}
+  .trace-step.assistant_text{border-left:3px solid var(--accent);}
+  .trace-step.tool_call{border-left:3px solid var(--warn);}
+  .trace-step.tool_result{border-left:3px solid var(--good);color:var(--muted);}
+  .trace-step code{background:#eef1f5;padding:0 4px;border-radius:4px;}
+
+  /* ---- modal ---- */
+  #overlay{position:fixed;inset:0;background:rgba(20,30,50,.45);display:none;align-items:center;justify-content:center;padding:20px;z-index:10;}
+  #overlay.open{display:flex;}
+  #modal{background:#fff;border-radius:12px;max-width:640px;width:100%;max-height:85vh;overflow-y:auto;padding:20px 22px;}
+  #modal h3{margin:0 0 4px;font-size:16px;}
+  #modal .sub{color:var(--muted);font-size:12.5px;margin-bottom:14px;}
+  #modal .attempt{border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:10px;}
+  #modal .close-row{text-align:right;margin-top:10px;}
+  .empty-hint{color:var(--muted);font-size:12.5px;text-align:center;padding:20px 8px;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>L1 Digital Worker</h1>
+  <span class="tag">Live Ticket Resolution Demo</span>
+  <div class="spacer"></div>
+  <label for="product-select" style="color:var(--muted);font-size:12.5px;">Product</label>
+  <select id="product-select"></select>
+</header>
+
+<main>
+  <section class="panel">
+    <h2>Chat intake</h2>
+    <div id="chat-log"></div>
+    <form id="chat-form">
+      <textarea id="chat-input" placeholder="Describe the issue…" rows="2"></textarea>
+      <button type="submit" class="primary" id="chat-submit">Submit</button>
+    </form>
+  </section>
+
+  <section class="panel">
+    <h2>Ticket board</h2>
+    <div id="board"></div>
+  </section>
+
+  <section class="panel" id="activity-panel">
+    <h2>L1 Digital Worker — Activity</h2>
+    <div class="sub">Every step the agent takes on the active ticket — retrieval, drafting, the confidence gate, and every ticket state change — same pipeline as production, just made visible.</div>
+    <div id="activity-log"></div>
+  </section>
+</main>
+
+<div id="overlay">
+  <div id="modal"></div>
+</div>
+
+<script>
+const STATUSES = [
+  {key:"new", label:"New", color:"var(--col-new)"},
+  {key:"working", label:"Working", color:"var(--col-working)"},
+  {key:"awaiting_review", label:"Awaiting Review", color:"var(--col-review)"},
+  {key:"resolved", label:"Resolved", color:"var(--col-resolved)"},
+  {key:"escalated", label:"Escalated", color:"var(--col-escalated)"},
+];
+
+let products = [];
+let selectedProduct = null;
+let activeTicketId = null;   // ticket currently in flight in the chat panel
+let currentAttemptNumber = 0; // attempt_number of the draft currently shown in chat
+let boardTimer = null;
+
+const $ = (sel) => document.querySelector(sel);
+const chatLog = $("#chat-log");
+const chatForm = $("#chat-form");
+const chatInput = $("#chat-input");
+const chatSubmit = $("#chat-submit");
+const productSelect = $("#product-select");
+const board = $("#board");
+const activityLog = $("#activity-log");
+
+async function api(path, options) {
+  const resp = await fetch(path, {
+    headers: {"Content-Type": "application/json"},
+    ...options,
+  });
+  if (!resp.ok) {
+    let detail = resp.statusText;
+    try { detail = (await resp.json()).detail || detail; } catch (e) {}
+    throw new Error(`${resp.status}: ${detail}`);
+  }
+  return resp.status === 204 ? null : resp.json();
+}
+
+function escapeHtml(s) {
+  return (s || "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+}
+function shortId(id) { return id ? id.slice(0, 8) : ""; }
+function pct(x) { return Math.round((x || 0) * 100) + "%"; }
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function nowTs() { return new Date().toLocaleTimeString([], {hour12: false}); }
+
+// ---------------------------------------------------------------------
+// agent activity panel - a play-by-play of what the L1 Digital Worker is
+// actually doing (every value here comes straight off a real API
+// response; only the reveal is paced for legibility, never fabricated).
+// ---------------------------------------------------------------------
+
+function addActivity(html, cls) {
+  const div = document.createElement("div");
+  div.className = `activity-row ${cls || ""}`;
+  div.innerHTML = `<span class="ts">${nowTs()}</span><span class="activity-body">${html}</span>`;
+  activityLog.appendChild(div);
+  activityLog.scrollTop = activityLog.scrollHeight;
+}
+
+function addStep(icon, html) {
+  addActivity(`${icon} ${html}`, "step");
+}
+
+const STEP_ICON = {assistant_text: "💬", tool_call: "🔧", tool_result: "↩️"};
+
+function renderTraceSteps(trace) {
+  if (!trace.steps || !trace.steps.length) return `<div class="empty-hint" style="padding:4px 0;">No intermediate tool calls.</div>`;
+  return `<div class="trace-steps">` + trace.steps.map(s => {
+    const icon = STEP_ICON[s.kind] || "•";
+    if (s.kind === "tool_call") {
+      const args = s.tool_input && Object.keys(s.tool_input).length ? escapeHtml(JSON.stringify(s.tool_input)) : "";
+      return `<div class="trace-step tool_call">${icon} called <code>${escapeHtml(s.tool_name || "")}</code>${args ? ` — <code>${args}</code>` : ""}</div>`;
+    }
+    if (s.kind === "tool_result") {
+      return `<div class="trace-step tool_result">${icon} tool result: ${escapeHtml(s.tool_result_summary || "")}</div>`;
+    }
+    return `<div class="trace-step assistant_text">${icon} ${escapeHtml(s.text || "")}</div>`;
+  }).join("") + `</div>`;
+}
+
+function renderTraceDetail(trace) {
+  if (!trace) return "";
+  return `<details class="trace"><summary>🧠 View full LLM call (prompt sent + response received)</summary>
+    <div class="trace-box">
+      <div><div class="trace-label">System prompt</div><pre>${escapeHtml(trace.system_prompt)}</pre></div>
+      <div><div class="trace-label">User prompt (retrieved context)</div><pre>${escapeHtml(trace.user_prompt)}</pre></div>
+      <div><div class="trace-label">Model turn-by-turn</div>${renderTraceSteps(trace)}</div>
+    </div>
+  </details>`;
+}
+
+function addStateChange(from, to, reason) {
+  const cls = to === "Escalated" ? "state escalate" : to === "Resolved" ? "state resolve" : "state";
+  addActivity(
+    `<strong>Ticket state: ${escapeHtml(from)} → ${escapeHtml(to)}</strong>` +
+    (reason ? `<div class="state-reason">${reason}</div>` : ""),
+    cls,
+  );
+}
+
+// Narrates the retrieve -> compose -> gate cycle for one attempt, using
+// only fields already present on the real API response (kb_hits/
+// issue_hits/cited_sources/gate_passed/gate_reasons/confidence_score) -
+// paced with short delays so a sub-second server round trip still reads
+// as a sequence of real steps, not one instant jump.
+async function narratePipeline(resolution, issue) {
+  const trace = resolution.trace;
+
+  await sleep(300);
+  addStep("🔎", `<b>classify_issue</b> — category: <code>${escapeHtml(issue.category || "unclassified")}</code>`);
+  await sleep(300);
+  if (trace) {
+    addActivity(
+      `🤖 <b>Active agent:</b> ${escapeHtml(trace.tier_role)} tier — model <code>${escapeHtml(trace.model)}</code> (${escapeHtml(trace.model_provider)})`,
+      "agent",
+    );
+  }
+  await sleep(300);
+  const kbHits = resolution.kb_hits || [];
+  const kbTop = kbHits.length ? Math.max(...kbHits.map(h => h.score)) : 0;
+  addStep("📚", `<b>search_kb</b> — ${kbHits.length} passage(s) retrieved, top score ${kbTop.toFixed(2)}`);
+  await sleep(350);
+  const issueHits = resolution.issue_hits || [];
+  const issTop = issueHits.length ? Math.max(...issueHits.map(h => h.score)) : 0;
+  addStep("🗂️", `<b>search_issues</b> — ${issueHits.length} past issue(s) found, top score ${issTop.toFixed(2)}`);
+  await sleep(350);
+  addStep("✍️", `<b>draft_response</b> — drafted a reply citing ${(resolution.cited_sources || []).length} source(s)${trace ? renderTraceDetail(trace) : ""}`);
+  await sleep(350);
+  const verdict = resolution.gate_passed
+    ? `<span style="color:var(--good);font-weight:700;">PASSED</span>`
+    : `<span style="color:var(--bad);font-weight:700;">FAILED</span>`;
+  const reasons = (resolution.gate_reasons || []).map(escapeHtml).join("; ");
+  addStep("🛡️", `<b>score_confidence</b> — ${verdict} at ${pct(resolution.confidence_score)}${reasons ? " — " + reasons : ""}`);
+  await sleep(200);
+}
+
+// ---------------------------------------------------------------------
+// chat panel
+// ---------------------------------------------------------------------
+
+function addMsg(kind, html) {
+  const div = document.createElement("div");
+  div.className = `msg ${kind}`;
+  div.innerHTML = html;
+  chatLog.appendChild(div);
+  chatLog.scrollTop = chatLog.scrollHeight;
+  return div;
+}
+
+function setChatBusy(busy) {
+  chatInput.disabled = busy;
+  chatSubmit.disabled = busy;
+}
+
+function renderEvidence(resolution) {
+  const kb = (resolution.kb_hits || []);
+  const issues = (resolution.issue_hits || []);
+  const reasons = resolution.gate_reasons || [];
+  if (!kb.length && !issues.length && !reasons.length) return "";
+  let html = `<details class="evidence"><summary>Sources & reasoning</summary><ul>`;
+  for (const h of kb) {
+    const cited = (resolution.cited_sources || []).includes(h.doc_id);
+    html += `<li>${cited ? "✓ " : ""}<code>${escapeHtml(h.doc_id)}</code> — ${escapeHtml(h.section_path)} (score ${h.score.toFixed(2)})</li>`;
+  }
+  for (const h of issues) {
+    const cited = (resolution.cited_sources || []).includes(h.issue_id);
+    html += `<li>${cited ? "✓ " : ""}<code>${escapeHtml(shortId(h.issue_id))}</code> — ${escapeHtml(h.summary)} · ${escapeHtml(h.outcome)} (score ${h.score.toFixed(2)})</li>`;
+  }
+  html += `</ul>`;
+  if (reasons.length) {
+    html += `<div class="reasons">Gate: ${reasons.map(escapeHtml).join("; ")}</div>`;
+  }
+  html += `</details>`;
+  return html;
+}
+
+function renderAgentDraft(resolution, attemptCount, maxAttempts) {
+  currentAttemptNumber = resolution.attempt_number;
+  const passed = resolution.gate_passed;
+  const badge = `<span class="badge ${passed ? "pass" : "fail"}">${passed ? "✓" : "✗"} confidence ${pct(resolution.confidence_score)}</span>`;
+  const tag = `<div class="attempt-tag">Attempt ${resolution.attempt_number} of ${maxAttempts}${attemptCount >= maxAttempts ? " (final)" : ""}</div>`;
+  const el = addMsg("agent", `${tag}${badge}<div class="draft-body">${escapeHtml(resolution.body)}</div>${renderEvidence(resolution)}`);
+
+  const row = document.createElement("div");
+  row.className = "feedback-row";
+  row.innerHTML = `<button class="primary" data-act="accept">Accept</button><button class="reject" data-act="reject">Reject</button>`;
+  const rejectBox = document.createElement("div");
+  rejectBox.className = "reject-box";
+  rejectBox.innerHTML = `<input type="text" placeholder="Reason (optional)"><button class="ghost" data-act="confirm-reject">Send</button>`;
+  el.appendChild(row);
+  el.appendChild(rejectBox);
+
+  row.querySelector('[data-act="accept"]').onclick = () => sendFeedback(true, null, row, rejectBox);
+  row.querySelector('[data-act="reject"]').onclick = () => rejectBox.classList.add("open");
+  rejectBox.querySelector('[data-act="confirm-reject"]').onclick = () => {
+    const reason = rejectBox.querySelector("input").value.trim() || null;
+    sendFeedback(false, reason, row, rejectBox);
+  };
+}
+
+async function sendFeedback(accepted, reason, row, rejectBox) {
+  row.querySelectorAll("button").forEach(b => b.disabled = true);
+  rejectBox.querySelectorAll("button, input").forEach(b => b.disabled = true);
+  addMsg("user", accepted ? "Accept" : `Reject${reason ? ": " + escapeHtml(reason) : ""}`);
+  addActivity(
+    `Requester ${accepted ? "<b>accepted</b>" : "<b>rejected</b>"} attempt ${currentAttemptNumber}` +
+    (reason ? ` — reason: "${escapeHtml(reason)}"` : ""),
+    "info",
+  );
+  setChatBusy(true);
+  try {
+    const resp = await api(`/tickets/${activeTicketId}/feedback`, {
+      method: "POST",
+      body: JSON.stringify({accepted, reason}),
+    });
+    if (accepted) {
+      addStateChange("Awaiting Review", "Resolved", "requester accepted the draft");
+      addStep("📌", "<b>log_resolution</b> — outcome recorded as accepted, indexed as precedent for future tickets");
+      addMsg("resolved", "✅ Ticket resolved. Logged as an accepted resolution — indexed as precedent for future tickets.");
+      activeTicketId = null;
+      setChatBusy(false);
+    } else if (resp.resolution.attempt_number > currentAttemptNumber) {
+      // Under the retry cap - a fresh attempt actually ran.
+      addStateChange("Awaiting Review", "Working", "requester rejected — re-running retrieve → compose → gate with the rejection reason threaded in as extra context");
+      await narratePipeline(resp.resolution, resp.issue);
+      await handlePostRunState(resp.issue, resp.resolution);
+    } else {
+      // Retry cap exceeded on this rejection - no further attempt ran.
+      addStateChange("Awaiting Review", "Escalated", `rejection cap reached (${resp.issue.attempt_count}/3 attempts) — handed to L2 without running a further attempt`);
+      await announceEscalation(resp.issue);
+    }
+  } catch (e) {
+    addMsg("system", `Error: ${escapeHtml(e.message)}`);
+    addActivity(`⚠️ Error: ${escapeHtml(e.message)}`, "error");
+    setChatBusy(false);
+  }
+  refreshBoard();
+}
+
+async function announceEscalation(issue) {
+  let ref = "";
+  let linked = null;
+  try {
+    const escalated = await api(`/tickets?status=escalated&source_channel=escalation`);
+    linked = escalated.find(t => t.escalated_from_issue_id === issue.issue_id) || null;
+  } catch (e) { /* best-effort */ }
+
+  if (linked) {
+    ref = ` — reference SR-${shortId(linked.issue_id).toUpperCase()}`;
+    addActivity(
+      `⇪ <b>Hand-off:</b> L1 Digital Worker (AI agent) → L2 Support (human)` +
+      (linked.escalation_queue ? ` — routed to queue <code>${escapeHtml(linked.escalation_queue)}</code>` : "") +
+      `<div class="state-reason">escalate_to_l2 created linked ticket <code>SR-${shortId(linked.issue_id).toUpperCase()}</code>, carrying the full draft + citations forward so L2 doesn't start from zero</div>`,
+      "handoff",
+    );
+  } else {
+    addStep("⇪", "<b>escalate_to_l2</b> — handed off to L2");
+  }
+  addMsg("escalate", `⇪ Handed to L2${ref}${linked && linked.escalation_queue ? ` (queue: ${escapeHtml(linked.escalation_queue)})` : ""}. The agent judged this ticket needs a human.`);
+  activeTicketId = null;
+  setChatBusy(false);
+}
+
+async function handlePostRunState(issue, resolution) {
+  if (issue.status === "awaiting_review") {
+    addStateChange("Working", "Awaiting Review", `confidence gate passed at ${pct(resolution.confidence_score)} — paused for your Accept/Reject (demo mode)`);
+    renderAgentDraft(resolution, issue.attempt_count, 3);
+    setChatBusy(false);
+  } else if (issue.status === "resolved") {
+    addStateChange("Working", "Resolved", `confidence gate passed at ${pct(resolution.confidence_score)} — auto-sent`);
+    addMsg("resolved", "✅ Ticket resolved. Logged as an accepted resolution — indexed as precedent for future tickets.");
+    activeTicketId = null;
+    setChatBusy(false);
+  } else if (issue.status === "escalated") {
+    const reasons = (resolution.gate_reasons || []).map(escapeHtml).join("; ");
+    addStateChange("Working", "Escalated", reasons ? `confidence gate failed — ${reasons}` : "confidence gate failed");
+    await announceEscalation(issue);
+  } else {
+    // still New/Working - shouldn't normally linger since /run and
+    // /feedback both run synchronously, but poll once more defensively.
+    setTimeout(() => refreshActiveTicket(), 600);
+  }
+}
+
+async function refreshActiveTicket() {
+  if (!activeTicketId) return;
+  const detail = await api(`/tickets/${activeTicketId}`);
+  await handlePostRunState(detail.issue, detail.resolution);
+}
+
+chatForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const text = chatInput.value.trim();
+  if (!text || !selectedProduct || activeTicketId) return;
+
+  addMsg("user", escapeHtml(text));
+  chatInput.value = "";
+  setChatBusy(true);
+
+  const summary = text.length > 80 ? text.slice(0, 77) + "…" : text;
+  try {
+    const issue = await api("/tickets", {
+      method: "POST",
+      body: JSON.stringify({
+        product_id: selectedProduct, summary, body: text,
+        source_channel: "chat_demo", demo_mode: true,
+      }),
+    });
+    activeTicketId = issue.issue_id;
+    currentAttemptNumber = 0;
+    const sr = `SR-${shortId(issue.issue_id).toUpperCase()}`;
+    addMsg("system", `Ticket ${sr} created — assigned to L1 Digital Worker`);
+    addActivity(`Ticket <code>${sr}</code> created for <b>${escapeHtml(selectedProduct)}</b>`, "info");
+    addStateChange("—", "New", "requester submitted the ticket via chat intake");
+    refreshBoard();
+
+    addStateChange("New", "Working", "L1 Digital Worker picked up the ticket — starting retrieve → compose → gate");
+    const resolution = await api(`/tickets/${issue.issue_id}/run`, {method: "POST"});
+    const detail = await api(`/tickets/${issue.issue_id}`);
+    await narratePipeline(resolution, detail.issue);
+    await handlePostRunState(detail.issue, resolution);
+  } catch (e) {
+    addMsg("system", `Error: ${escapeHtml(e.message)}`);
+    addActivity(`⚠️ Error: ${escapeHtml(e.message)}`, "error");
+    setChatBusy(false);
+    activeTicketId = null;
+  }
+  refreshBoard();
+});
+
+// ---------------------------------------------------------------------
+// ticket board
+// ---------------------------------------------------------------------
+
+function cardHtml(issue) {
+  return `
+    <div class="card" data-id="${issue.issue_id}">
+      <div class="cid">SR-${shortId(issue.issue_id).toUpperCase()}</div>
+      <div class="csummary">${escapeHtml(issue.summary)}</div>
+      <div class="cmeta">
+        <span>${escapeHtml(issue.category || "uncategorized")} · #${issue.attempt_count}</span>
+      </div>
+    </div>`;
+}
+
+async function refreshBoard() {
+  if (!selectedProduct) { board.innerHTML = ""; return; }
+  let issues = [];
+  try {
+    issues = await api(`/tickets?product_id=${encodeURIComponent(selectedProduct)}&source_channel=chat_demo,escalation`);
+  } catch (e) { return; }
+
+  board.innerHTML = "";
+  for (const s of STATUSES) {
+    const col = document.createElement("div");
+    col.className = "col";
+    const items = issues.filter(i => i.status === s.key);
+    col.innerHTML = `<div class="col-head"><span><span class="dot" style="background:${s.color}"></span>${s.label}</span><span class="col-count">${items.length}</span></div>`;
+    if (!items.length) {
+      col.innerHTML += `<div class="empty-hint" style="padding:8px 2px;">—</div>`;
+    } else {
+      for (const issue of items) col.innerHTML += cardHtml(issue);
+    }
+    board.appendChild(col);
+  }
+  board.querySelectorAll(".card").forEach(c => c.onclick = () => openDetail(c.dataset.id));
+}
+
+async function openDetail(issueId) {
+  const detail = await api(`/tickets/${issueId}`);
+  const { issue, attempts } = detail;
+  let html = `<h3>SR-${shortId(issue.issue_id).toUpperCase()}</h3>`;
+  html += `<div class="sub">${escapeHtml(issue.category || "uncategorized")} · status: ${escapeHtml(issue.status)} · attempt ${issue.attempt_count} of 3</div>`;
+  html += `<div style="margin-bottom:12px;"><strong>${escapeHtml(issue.summary)}</strong><div style="color:var(--muted);margin-top:4px;">${escapeHtml(issue.body)}</div></div>`;
+  if (issue.escalated_from_issue_id) {
+    html += `<div class="reasons" style="margin-bottom:12px;">Escalated from SR-${shortId(issue.escalated_from_issue_id).toUpperCase()}</div>`;
+  }
+  if (!attempts.length) {
+    html += `<div class="empty-hint">No attempts yet.</div>`;
+  }
+  for (const a of attempts) {
+    const badge = a.gate_passed === null ? "" : `<span class="badge ${a.gate_passed ? "pass" : "fail"}">${a.gate_passed ? "✓" : "✗"} ${pct(a.confidence_score)}</span>`;
+    html += `<div class="attempt">
+      <div class="attempt-tag">Attempt ${a.attempt_number} · outcome: ${escapeHtml(a.outcome)}</div>
+      ${badge}
+      <div class="draft-body" style="margin-top:6px;">${escapeHtml(a.body)}</div>
+      ${a.rejection_reason ? `<div class="reasons">Rejected: ${escapeHtml(a.rejection_reason)}</div>` : ""}
+      ${a.gate_reasons && a.gate_reasons.length ? `<div class="reasons">Gate: ${a.gate_reasons.map(escapeHtml).join("; ")}</div>` : ""}
+    </div>`;
+  }
+  html += `<div class="close-row"><button class="ghost" id="modal-close">Close</button></div>`;
+  $("#modal").innerHTML = html;
+  $("#modal-close").onclick = closeModal;
+  $("#overlay").classList.add("open");
+}
+function closeModal() { $("#overlay").classList.remove("open"); }
+$("#overlay").addEventListener("click", (e) => { if (e.target.id === "overlay") closeModal(); });
+
+// ---------------------------------------------------------------------
+// bootstrap
+// ---------------------------------------------------------------------
+
+async function loadProducts() {
+  products = await api("/products");
+  productSelect.innerHTML = products.length
+    ? products.map(p => `<option value="${p.product_id}">${escapeHtml(p.display_name)}</option>`).join("")
+    : `<option value="">No products onboarded</option>`;
+  selectedProduct = products[0] ? products[0].product_id : null;
+}
+
+productSelect.addEventListener("change", () => {
+  selectedProduct = productSelect.value || null;
+  refreshBoard();
+});
+
+(async function init() {
+  try {
+    await loadProducts();
+  } catch (e) {
+    addMsg("system", `Could not load products: ${escapeHtml(e.message)}`);
+  }
+  if (!selectedProduct) {
+    addMsg("system", "No product is onboarded yet — run `l1agent onboard --config config/products/<file>.yaml` first.");
+    setChatBusy(true);
+  }
+  refreshBoard();
+  boardTimer = setInterval(refreshBoard, 1500);
+})();
+</script>
+
+</body>
+</html>

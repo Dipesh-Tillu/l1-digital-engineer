@@ -1,0 +1,38 @@
+product_id: beta-gadgets
+display_name: Beta Gadgets
+issue_taxonomy:
+  - billing/refunds
+  - gadget/setup
+  - product/defect
+thresholds:
+  - category: "*"
+    min_citation_score: 0.72
+    require_precedent: false
+    auto_resolve: false
+  - category: billing/refunds
+    min_citation_score: 0.65
+    require_precedent: false
+    auto_resolve: true
+  - category: gadget/setup
+    min_citation_score: 0.60
+    require_precedent: false
+    auto_resolve: true
+escalation:
+  default_queue: l2-general
+  category_routes:
+    product/defect: l2-engineering
+model:
+  default: claude-sonnet-4-5
+  overrides:
+    classify_issue: claude-haiku-4-5
+kb_sources:
+  - type: file
+    path: tests/fixtures/beta-gadgets/docs
+issue_sources:
+  - type: file
+    path: tests/fixtures/beta-gadgets/issues.csv
+    summary_col: Subject
+    body_col: Description
+    category_col: Type
+    resolution_col: Resolution
+    outcome_col: Outcome
